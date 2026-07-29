@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Learner Operations &amp; Analytics</title>
+<style>
+  :root{
+    --bg: #F5F7F6;
+    --surface: #FFFFFF;
+    --surface-alt: #EEF2EF;
+    --ink: #14201A;
+    --muted: #5C6B63;
+    --border: #DCE4DF;
+    --accent: #1F6E46;
+    --accent-dark: #16512F;
+    --accent-soft: #DCEEE2;
+    --activated: #3B6E9E;
+    --activated-soft: #DCE9F5;
+    --warn: #B9762F;
+    --warn-soft: #F4E5D2;
+    --danger: #A6483F;
+    --track: #E4E9E6;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(20,32,26,0.06), 0 1px 12px rgba(20,32,26,0.04);
+    /* fixed regardless of theme, so the brand header never inverts */
+    --header-grad-start: #16512F;
+    --header-grad-end: #1F6E46;
+  }
+  html[data-theme="dark"]{
+    --bg: #101D16;
+    --surface: #17251D;
+    --surface-alt: #1E3025;
+    --ink: #E9F1EC;
+    --muted: #93A79C;
+    --border: #2A3D31;
+    --accent: #3FAE73;
+    --accent-dark: #8FE3B7;
+    --accent-soft: #1E3A2A;
+    --activated: #78B4E6;
+    --activated-soft: #1E3244;
+    --warn: #E3A75E;
+    --warn-soft: #40311B;
+    --danger: #E28A80;
+    --track: #263427;
+    --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 1px 14px rgba(0,0,0,0.3);
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+    transition: background .2s ease, color .2s ease;
+  }
+  h1,h2,h3{
+    font-family: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .num{ font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+
+  /* ---------- Layout shells ---------- */
+  .wrap{ max-width: 1280px; margin: 0 auto; padding: 0 24px 64px; }
+  header.top{
+    background: linear-gradient(135deg, var(--header-grad-start), var(--header-grad-end));
+    color: #fff;
+    padding: 22px 24px;
+  }
+  header.top .inner{ max-width: 1280px; margin: 0 auto; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand-logo{ height:32px; width:auto; flex-shrink:0; display:block; }
+  .brand-text h1{ font-size: 19px; color:#fff; }
+  .brand-text p{ margin:2px 0 0; font-size:12.5px; color: rgba(255,255,255,0.78); }
+  .top-meta{ text-align:right; font-size:12.5px; color: rgba(255,255,255,0.85); }
+  .top-meta .rows{ font-size: 20px; font-weight:600; color:#fff; }
+  .top-right{ display:flex; align-items:center; gap:18px; }
+  #themeToggle{
+    display:flex; align-items:center; gap:7px; background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.3); color:#fff; border-radius:999px;
+    padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer;
+    font-family: inherit;
+  }
+  #themeToggle:hover{ background: rgba(255,255,255,0.22); }
+
+  section{ margin-top: 28px; }
+  .card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+  }
+  .section-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
+  .section-head h2{ font-size:16px; }
+  .section-head .sub{ color: var(--muted); font-size:12.5px; }
+
+  /* ---------- Upload ---------- */
+  #uploadCard{ margin-top: -28px; position:relative; z-index:2; }
+  .dropzone{
+    border: 1.5px dashed #B9C7BE;
+    border-radius: var(--radius);
+    padding: 26px;
+    text-align:center;
+    cursor:pointer;
+    background: var(--surface-alt);
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .dropzone:hover, .dropzone.drag{ border-color: var(--accent); background: var(--accent-soft); }
+  .dropzone .hint{ color: var(--muted); font-size:12.5px; margin-top:4px; }
+  .dropzone strong{ color: var(--accent-dark); }
+  #fileStatus{ margin-top:12px; font-size:13px; color: var(--muted); display:flex; align-items:center; gap:8px; }
+  #fileStatus.ok{ color: var(--accent-dark); font-weight:600; }
+  .spinner{
+    width:14px; height:14px; border-radius:50%;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    animation: spin .7s linear infinite; display:none;
+  }
+  .spinner.show{ display:inline-block; }
+  @keyframes spin{ to{ transform: rotate(360deg);} }
+
+  /* ---------- Filters ---------- */
+  .filter-grid{ display:grid; grid-template-columns: 1.3fr 1fr 1fr; gap:18px; }
+  @media (max-width: 900px){ .filter-grid{ grid-template-columns: 1fr; } }
+  .filter-label{ font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color: var(--muted); font-weight:600; margin-bottom:8px; }
+  .chip-row{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{
+    border:1px solid var(--border); background:var(--surface); border-radius:999px;
+    padding:5px 12px; font-size:12.5px; cursor:pointer; color:var(--muted);
+    user-select:none; transition: all .12s ease;
+  }
+  .chip:hover{ border-color: var(--accent); }
+  .chip.active{ background: var(--accent); border-color: var(--accent); color:#fff; font-weight:600; }
+  select, input[type=text]{
+    width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px;
+    font-size:13px; background:var(--surface); color: var(--ink); font-family: inherit;
+  }
+  .filter-actions{ margin-top:14px; display:flex; justify-content:flex-end; }
+  .link-btn{ background:none; border:none; color: var(--accent-dark); font-size:12.5px; cursor:pointer; font-weight:600; text-decoration:underline; }
+
+  /* ---------- Stat cards ---------- */
+  .stat-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; }
+  @media (max-width: 900px){ .stat-grid{ grid-template-columns: repeat(2,1fr);} }
+  .stat-card{ background:var(--surface); border:1px solid var(--border); border-radius: var(--radius); padding:18px; box-shadow: var(--shadow); }
+  .stat-card .label{ font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:600; }
+  .stat-card .value{ font-size:28px; font-weight:700; margin-top:6px; color: var(--ink); }
+  .stat-card .footnote{ font-size:12px; color:var(--muted); margin-top:4px; }
+  .stat-card.accent{ border-left: 4px solid var(--accent); }
+  .stat-card.blue{ border-left: 4px solid var(--activated); }
+  .stat-card.warn{ border-left: 4px solid var(--warn); }
+
+  /* ---------- Charts row ---------- */
+  .charts-row{ display:grid; grid-template-columns: 1fr 1.6fr; gap:18px; }
+  @media (max-width: 900px){ .charts-row{ grid-template-columns: 1fr; } }
+  .gender-card{ max-width: 380px; }
+  .toggle-group{ display:flex; gap:4px; background:var(--surface-alt); border-radius:8px; padding:3px; }
+  .toggle-group button{
+    border:none; background:none; padding:5px 12px; font-size:12px; border-radius:6px; cursor:pointer; color:var(--muted); font-weight:600;
+  }
+  .toggle-group button.active{ background:var(--surface); color:var(--accent-dark); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+  canvas{ max-width:100%; }
+  .legend-note{ font-size:11.5px; color:var(--muted); margin-top:10px; display:flex; gap:14px; flex-wrap:wrap; }
+  .legend-dot{ display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; vertical-align:middle; }
+
+  /* ---------- Scoreboard (signature element) ---------- */
+  .sort-select{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); }
+  .sort-select select{ width:auto; padding:5px 8px; }
+  .lane{ display:flex; align-items:center; gap:14px; padding:10px 0; border-bottom: 1px solid var(--border); }
+  .lane:last-child{ border-bottom:none; }
+  .rank{
+    width:26px; height:26px; border-radius:50%; background: var(--surface-alt); color: var(--accent-dark);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12.5px; flex-shrink:0;
+    font-family:"IBM Plex Mono", monospace;
+  }
+  .lane:nth-child(1) .rank{ background: var(--accent); color:#fff; }
+  .lane:nth-child(2) .rank{ background: #4F8A67; color:#fff; }
+  .lane:nth-child(3) .rank{ background: #7BAE8F; color:#fff; }
+  .lane-country{ width:130px; flex-shrink:0; font-weight:600; font-size:13px; }
+  .lane-track-wrap{ flex:1; }
+  .track{ position:relative; height:20px; background: var(--track); border-radius:5px; overflow:hidden; }
+  .track .seg-activated{ position:absolute; top:0; left:0; height:100%; background: var(--activated); opacity:.55; }
+  .track .seg-paid{ position:absolute; top:0; left:0; height:100%; background: var(--accent); }
+  .lane-numbers{ width:230px; flex-shrink:0; display:flex; gap:14px; font-size:12px; color:var(--muted); justify-content:flex-end; }
+  .lane-numbers b{ color:var(--ink); font-family:"IBM Plex Mono",monospace; }
+  .lane-checkbox{ flex-shrink:0; }
+
+  /* ---------- Directory table ---------- */
+  .table-toolbar{ display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+  .table-toolbar input[type=text]{ max-width:280px; }
+  .btn{
+    background: var(--accent); color:#fff; border:none; border-radius:8px; padding:8px 14px;
+    font-size:12.5px; font-weight:600; cursor:pointer; white-space:nowrap;
+  }
+  .btn:hover{ background: var(--accent-dark); }
+  .btn.secondary{ background:var(--surface); color:var(--accent-dark); border:1px solid var(--border); }
+  table{ width:100%; border-collapse: collapse; font-size:12.8px; }
+  thead th{
+    text-align:left; padding:8px 10px; background: var(--surface-alt); color:var(--muted);
+    font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em;
+    border-bottom:1px solid var(--border); position:sticky; top:0;
+  }
+  tbody td{ padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+  tbody tr:hover{ background: var(--surface-alt); }
+  .table-scroll{ max-height: 520px; overflow:auto; border:1px solid var(--border); border-radius:8px; }
+  .badge{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; margin:1px 3px 1px 0; }
+  .badge.prog{ background: var(--surface-alt); color: var(--accent-dark); }
+  .badge.multi{ background: var(--warn-soft); color: var(--warn); }
+  .module-line{ font-size:11.5px; color:var(--muted); display:block; }
+  .yes{ color: var(--accent-dark); font-weight:700; }
+  .no{ color: var(--muted); }
+  .pager{ display:flex; align-items:center; justify-content:space-between; margin-top:12px; font-size:12.5px; color:var(--muted); }
+  .pager .btn.secondary{ padding:5px 10px; }
+
+  .empty-state{ text-align:center; padding:50px 20px; color:var(--muted); }
+  .empty-state h2{ color:var(--ink); font-size:17px; margin-bottom:6px; }
+
+  #dashboardBody{ display:none; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="inner">
+    <div class="brand">
+      <img src="data:image/png;base64,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" alt="ALX logo" class="brand-logo" />
+      <div class="brand-text">
+        <h1>Learner Operations &amp; Analytics</h1>
+        <p>Enrollment, activation &amp; payment conversion across programs and countries</p>
+      </div>
+    </div>
+    <div class="top-right">
+      <div class="top-meta">
+        <div class="rows num" id="topLearnerCount">—</div>
+        <div>unique learners loaded</div>
+      </div>
+      <button id="themeToggle" type="button" title="Switch theme">
+        <span id="themeIcon">🌙</span><span id="themeLabel">Dark</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section id="uploadCard" class="card">
+    <div class="section-head">
+      <h2>Upload weekly export</h2>
+      <span class="sub">The dashboard updates automatically the moment a file is selected — no processing button needed.</span>
+    </div>
+    <div class="dropzone" id="dropzone">
+      <div><strong>Drag &amp; drop your CSV here</strong>, or click to choose a file</div>
+      <div class="hint">Expects the Student Activity export format (Email, Program name, Course sequence number, etc.)</div>
+      <input type="file" id="fileInput" accept=".csv" style="display:none" />
+    </div>
+    <div id="fileStatus"><span class="spinner" id="spinner"></span><span id="fileStatusText">No file loaded yet.</span></div>
+  </section>
+
+  <div id="dashboardBody">
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Filters</h2>
+        <button class="link-btn" id="clearFilters">Clear all filters</button>
+      </div>
+      <div class="filter-grid">
+        <div>
+          <div class="filter-label">Program</div>
+          <div class="chip-row" id="programChips"></div>
+        </div>
+        <div>
+          <div class="filter-label">Country <span style="font-weight:400; text-transform:none; color:var(--muted)">(select several to compare)</span></div>
+          <div class="chip-row" id="countryChips"></div>
+        </div>
+        <div>
+          <div class="filter-label">Current module</div>
+          <select id="courseFilter"><option value="all">All modules</option></select>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="stat-grid">
+        <div class="stat-card accent">
+          <div class="label">Enrolled learners</div>
+          <div class="value num" id="statEnrolled">0</div>
+          <div class="footnote">matching current filters</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="label">Activated</div>
+          <div class="value num" id="statActivated">0</div>
+          <div class="footnote" id="statActivatedPct">0% of enrolled</div>
+        </div>
+        <div class="stat-card accent">
+          <div class="label">Paid</div>
+          <div class="value num" id="statPaid">0</div>
+          <div class="footnote" id="statPaidPct">0% of enrolled · 0% of activated</div>
+        </div>
+        <div class="stat-card warn">
+          <div class="label">Multi-program learners</div>
+          <div class="value num" id="statMulti">0</div>
+          <div class="footnote">enrolled in 2+ programs</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Enrolled vs. Activated vs. Paid, by country</h2>
+      </div>
+      <canvas id="barChart" height="220"></canvas>
+      <div class="legend-note">
+        <span><span class="legend-dot" style="background:var(--track)"></span>Enrolled</span>
+        <span><span class="legend-dot" style="background:var(--activated)"></span>Activated</span>
+        <span><span class="legend-dot" style="background:var(--accent)"></span>Paid</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Country leaderboard</h2>
+        <div class="sort-select">
+          Rank by
+          <select id="rankMetric">
+            <option value="enrolled">Enrolled</option>
+            <option value="paid">Paid</option>
+            <option value="convEnrolled">Conversion (of enrolled)</option>
+            <option value="convActivated">Conversion (of activated)</option>
+          </select>
+        </div>
+      </div>
+      <div id="scoreboard"></div>
+    </section>
+
+    <section>
+      <div class="card gender-card">
+        <div class="section-head"><h2>Gender split</h2></div>
+        <canvas id="genderChart" height="140"></canvas>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Learner directory</h2>
+        <span class="sub" id="directoryCount">0 learners</span>
+      </div>
+      <div class="table-toolbar">
+        <input type="text" id="searchBox" placeholder="Search email or name…" />
+        <button class="btn secondary" id="exportBtn">Export filtered list (CSV)</button>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Email</th><th>Name</th><th>Gender</th><th>Country</th>
+              <th># Programs</th><th>Progress</th><th>Health status</th>
+              <th>Activated</th><th>Paid</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <span id="pagerInfo">—</span>
+        <div>
+          <button class="btn secondary" id="prevPage">← Prev</button>
+          <button class="btn secondary" id="nextPage">Next →</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="empty-state" id="emptyState">
+    <h2>No data loaded yet</h2>
+    <div>Upload a Student Activity CSV export above to populate the dashboard.</div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js" crossorigin="anonymous"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------------- State ----------------
+  let learners = [];          // full array of learner objects
+  let allPrograms = [];        // sorted list of program names
+  let allCountries = [];       // sorted list of country names (by enrollment)
+  let allCourses = [];         // sorted list of "Program — Course" strings
+  const filters = { programs: new Set(), countries: new Set(), course: "all", search: "" };
+  let page = 1;
+  const PAGE_SIZE = 50;
+  let genderChartRef = null;
+  let barChartRef = null;
+  let theme = "light"; // kept in memory only (no localStorage inside the artifact preview)
+
+  // ---------------- DOM refs ----------------
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("fileInput");
+  const fileStatus = document.getElementById("fileStatus");
+  const fileStatusText = document.getElementById("fileStatusText");
+  const spinner = document.getElementById("spinner");
+  const dashboardBody = document.getElementById("dashboardBody");
+  const emptyState = document.getElementById("emptyState");
+  const topLearnerCount = document.getElementById("topLearnerCount");
+  const themeToggle = document.getElementById("themeToggle");
+  const themeIcon = document.getElementById("themeIcon");
+  const themeLabel = document.getElementById("themeLabel");
+
+  // reads the live CSS custom property values so Chart.js matches the current theme
+  function cssVar(name){
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+  function chartColors(){
+    return { text: cssVar("--muted"), grid: cssVar("--border"), surface: cssVar("--surface") };
+  }
+
+  function setTheme(next){
+    theme = next;
+    document.documentElement.setAttribute("data-theme", theme);
+    themeIcon.textContent = theme === "dark" ? "☀️" : "🌙";
+    themeLabel.textContent = theme === "dark" ? "Light" : "Dark";
+    if (learners.length){
+      // charts bake colors into their config at creation time, so redraw them on theme change
+      const filtered = getFiltered();
+      renderGenderChart(filtered);
+      renderBarChart(filtered);
+    }
+  }
+  themeToggle.addEventListener("click", () => setTheme(theme === "dark" ? "light" : "dark"));
+
+  dropzone.addEventListener("click", () => fileInput.click());
+  dropzone.addEventListener("dragover", e => { e.preventDefault(); dropzone.classList.add("drag"); });
+  dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag"));
+  dropzone.addEventListener("drop", e => {
+    e.preventDefault();
+    dropzone.classList.remove("drag");
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener("change", e => {
+    if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  function handleFile(file){
+    fileStatus.classList.remove("ok");
+    spinner.classList.add("show");
+    fileStatusText.textContent = "Reading " + file.name + " …";
+    // yield a frame first so the "Reading…" message actually paints before the
+    // (synchronous) parse work below starts — no Web Worker, since sandboxed
+    // artifact iframes can silently block worker creation.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const reader = new FileReader();
+      reader.onload = function(e){
+        let parsed;
+        try {
+          parsed = Papa.parse(e.target.result, { header: true, skipEmptyLines: true });
+        } catch (err){
+          spinner.classList.remove("show");
+          fileStatusText.textContent = "Could not parse that file: " + err;
+          return;
+        }
+        if (parsed.errors && parsed.errors.length){
+          console.warn("CSV parse warnings:", parsed.errors.slice(0,5));
+        }
+        fileStatusText.textContent = "Aggregating " + parsed.data.length.toLocaleString() + " rows…";
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          aggregate(parsed.data);
+          spinner.classList.remove("show");
+          fileStatus.classList.add("ok");
+          fileStatusText.textContent = "Loaded " + file.name + " · " + parsed.data.length.toLocaleString() + " rows · " + learners.length.toLocaleString() + " unique learners";
+          renderAll(true);
+        }));
+      };
+      reader.onerror = function(){
+        spinner.classList.remove("show");
+        fileStatusText.textContent = "Could not read that file from disk.";
+      };
+      reader.readAsText(file);
+    }));
+  }
+
+  // ---------------- Aggregation ----------------
+  function aggregate(rows){
+    const map = new Map();
+    const courseSet = new Set();
+
+    for (const row of rows){
+      const email = (row["Email"] || "").trim().toLowerCase();
+      if (!email) continue;
+
+      let L = map.get(email);
+      if (!L){
+        L = {
+          email: email,
+          first: row["First name"] || "",
+          last: row["Last name"] || "",
+          gender: row["Gender"] || "n/a",
+          country: row["Country of residence"] || "n/a",
+          region: row["Regions"] || "n/a",
+          health: row["Learner health classification status"] || "n/a",
+          activated: false,
+          paid: false,
+          programs: new Map() // programName -> {seq, name, status}
+        };
+        map.set(email, L);
+      }
+      if (row["Is enrollment activated"] === "Yes") L.activated = true;
+      if (row["Payment plan status"] === "ACTIVE") L.paid = true;
+      if (row["Learner health classification status"]) L.health = row["Learner health classification status"];
+
+      const program = row["Program name"] || "n/a";
+      const courseName = row["Course name"] || "n/a";
+      const seqRaw = row["Course sequence number"];
+      const seq = (seqRaw === "" || seqRaw === undefined || seqRaw === null) ? -1 : parseInt(seqRaw, 10);
+      const status = row["Course status (LMS)"] || "n/a";
+
+      if (courseName !== "n/a" && !isNaN(seq)){
+        const existing = L.programs.get(program);
+        if (!existing || seq > existing.seq){
+          L.programs.set(program, { seq: seq, name: courseName, status: status });
+        }
+      } else if (!L.programs.has(program)){
+        L.programs.set(program, { seq: -1, name: "n/a", status: "n/a" });
+      }
+    }
+
+    // finalize into plain arrays for fast repeated filtering
+    learners = [];
+    for (const L of map.values()){
+      const progArr = [];
+      for (const [name, info] of L.programs.entries()){
+        progArr.push({ program: name, course: info.name, status: info.status });
+        if (info.name !== "n/a") courseSet.add(name + " — " + info.name);
+      }
+      learners.push({
+        email: L.email, first: L.first, last: L.last, gender: L.gender,
+        country: L.country, region: L.region, health: L.health,
+        activated: L.activated, paid: L.paid,
+        programs: progArr, multi: progArr.length > 1
+      });
+    }
+
+    // distinct filter option lists
+    const progCount = new Map();
+    const countryCount = new Map();
+    for (const L of learners){
+      for (const p of L.programs) progCount.set(p.program, (progCount.get(p.program)||0)+1);
+      countryCount.set(L.country, (countryCount.get(L.country)||0)+1);
+    }
+    allPrograms = [...progCount.keys()].sort((a,b)=>progCount.get(b)-progCount.get(a));
+    allCountries = [...countryCount.keys()].sort((a,b)=>countryCount.get(b)-countryCount.get(a));
+    allCourses = [...courseSet].sort();
+
+    buildFilterUI();
+  }
+
+  // ---------------- Filter UI construction (only rebuilt on new upload) ----------------
+  function buildFilterUI(){
+    const progWrap = document.getElementById("programChips");
+    progWrap.innerHTML = "";
+    allPrograms.forEach(p => progWrap.appendChild(makeChip(p, "programs")));
+
+    const countryWrap = document.getElementById("countryChips");
+    countryWrap.innerHTML = "";
+    allCountries.forEach(c => countryWrap.appendChild(makeChip(c, "countries")));
+
+    const courseSelect = document.getElementById("courseFilter");
+    courseSelect.innerHTML = '<option value="all">All modules</option>';
+    allCourses.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c; opt.textContent = c;
+      courseSelect.appendChild(opt);
+    });
+  }
+
+  function makeChip(label, setName){
+    const el = document.createElement("div");
+    el.className = "chip";
+    el.textContent = label;
+    el.addEventListener("click", () => {
+      const set = filters[setName];
+      if (set.has(label)) set.delete(label); else set.add(label);
+      el.classList.toggle("active");
+      page = 1;
+      renderAll();
+    });
+    return el;
+  }
+
+  document.getElementById("courseFilter").addEventListener("change", e => {
+    filters.course = e.target.value; page = 1; renderAll();
+  });
+  document.getElementById("searchBox").addEventListener("input", e => {
+    filters.search = e.target.value.trim().toLowerCase(); page = 1; renderTable();
+  });
+  document.getElementById("clearFilters").addEventListener("click", () => {
+    filters.programs.clear(); filters.countries.clear(); filters.course = "all"; filters.search = "";
+    document.getElementById("searchBox").value = "";
+    document.getElementById("courseFilter").value = "all";
+    document.querySelectorAll(".chip.active").forEach(c => c.classList.remove("active"));
+    page = 1; renderAll();
+  });
+
+  document.getElementById("rankMetric").addEventListener("change", () => renderScoreboard(getFiltered()));
+
+  document.getElementById("prevPage").addEventListener("click", () => { if (page>1){ page--; renderTable(); }});
+  document.getElementById("nextPage").addEventListener("click", () => { page++; renderTable(); });
+
+  document.getElementById("exportBtn").addEventListener("click", () => {
+    const rows = getFiltered();
+    const header = ["Email","First name","Last name","Gender","Country","# Programs","Programs","Progress","Health status","Activated","Paid"];
+    const lines = [header.join(",")];
+    rows.forEach(L => {
+      const progs = L.programs.map(p=>p.program).join(" | ");
+      const mods = L.programs.map(p=>p.program+": "+p.course+" ("+p.status+")").join(" | ");
+      const cells = [L.email, L.first, L.last, L.gender, L.country, L.programs.length, progs, mods, L.health, L.activated?"Yes":"No", L.paid?"Yes":"No"];
+      lines.push(cells.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(","));
+    });
+    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "learner_outreach_export.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // ---------------- Filtering ----------------
+  function getFiltered(){
+    return learners.filter(L => {
+      if (filters.programs.size && !L.programs.some(p => filters.programs.has(p.program))) return false;
+      if (filters.countries.size && !filters.countries.has(L.country)) return false;
+      if (filters.course !== "all"){
+        const match = L.programs.some(p => (p.program + " — " + p.course) === filters.course);
+        if (!match) return false;
+      }
+      return true;
+    });
+  }
+  function getFilteredWithSearch(){
+    let rows = getFiltered();
+    if (filters.search){
+      rows = rows.filter(L =>
+        L.email.includes(filters.search) ||
+        (L.first + " " + L.last).toLowerCase().includes(filters.search)
+      );
+    }
+    return rows;
+  }
+
+  // ---------------- Render orchestration ----------------
+  function renderAll(){
+    if (!learners.length) return;
+    dashboardBody.style.display = "block";
+    emptyState.style.display = "none";
+    topLearnerCount.textContent = learners.length.toLocaleString();
+    const filtered = getFiltered();
+    renderStats(filtered);
+    renderGenderChart(filtered);
+    renderBarChart(filtered);
+    renderScoreboard(filtered);
+    renderTable();
+  }
+
+  function renderStats(rows){
+    const enrolled = rows.length;
+    const activated = rows.filter(r=>r.activated).length;
+    const paid = rows.filter(r=>r.paid).length;
+    const multi = rows.filter(r=>r.multi).length;
+    document.getElementById("statEnrolled").textContent = enrolled.toLocaleString();
+    document.getElementById("statActivated").textContent = activated.toLocaleString();
+    document.getElementById("statActivatedPct").textContent = pct(activated,enrolled) + "% of enrolled";
+    document.getElementById("statPaid").textContent = paid.toLocaleString();
+    document.getElementById("statPaidPct").textContent = pct(paid,enrolled) + "% of enrolled · " + pct(paid,activated) + "% of activated";
+    document.getElementById("statMulti").textContent = multi.toLocaleString();
+  }
+
+  function pct(n,d){ if (!d) return "0"; return ((n/d)*100).toFixed(1); }
+
+  function renderGenderChart(rows){
+    const counts = new Map();
+    rows.forEach(r => counts.set(r.gender, (counts.get(r.gender)||0)+1));
+    const labels = [...counts.keys()];
+    const data = labels.map(l=>counts.get(l));
+    const colors = ["#1F6E46","#3B6E9E","#B9762F","#A6483F","#8C8C8C"];
+    const c = chartColors();
+    if (genderChartRef) genderChartRef.destroy();
+    genderChartRef = new Chart(document.getElementById("genderChart"), {
+      type: "doughnut",
+      data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 2, borderColor: c.surface }] },
+      options: {
+        plugins: { legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11.5 }, color: c.text } } },
+        cutout: "62%"
+      }
+    });
+  }
+
+  function renderBarChart(rows){
+    const groups = new Map();
+    allCountries.forEach(k => groups.set(k, { enrolled:0, activated:0, paid:0 }));
+
+    rows.forEach(L => {
+      const g = groups.get(L.country); if (!g) return;
+      g.enrolled++; if (L.activated) g.activated++; if (L.paid) g.paid++;
+    });
+
+    const labels = [...groups.keys()].filter(k => groups.get(k).enrolled > 0)
+      .sort((a,b)=>groups.get(b).enrolled - groups.get(a).enrolled);
+
+    const c = chartColors();
+    if (barChartRef) barChartRef.destroy();
+    barChartRef = new Chart(document.getElementById("barChart"), {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [
+          { label:"Enrolled", data: labels.map(l=>groups.get(l).enrolled), backgroundColor: c.grid },
+          { label:"Activated", data: labels.map(l=>groups.get(l).activated), backgroundColor:"#3B6E9E" },
+          { label:"Paid", data: labels.map(l=>groups.get(l).paid), backgroundColor:"#1F6E46" }
+        ]
+      },
+      options: {
+        plugins: { legend: { display:false } },
+        scales: {
+          x: { ticks: { font:{size:11}, color: c.text }, grid: { color: c.grid } },
+          y: { beginAtZero:true, ticks: { color: c.text }, grid: { color: c.grid } }
+        }
+      }
+    });
+  }
+
+  function renderScoreboard(rows){
+    const agg = new Map();
+    allCountries.forEach(c => agg.set(c, { enrolled:0, activated:0, paid:0 }));
+    rows.forEach(L => {
+      const g = agg.get(L.country); if (!g) return;
+      g.enrolled++; if (L.activated) g.activated++; if (L.paid) g.paid++;
+    });
+
+    let list = [...agg.entries()].map(([country, v]) => ({
+      country,
+      enrolled: v.enrolled, activated: v.activated, paid: v.paid,
+      convEnrolled: v.enrolled ? v.paid/v.enrolled : 0,
+      convActivated: v.activated ? v.paid/v.activated : 0
+    })).filter(c => c.enrolled > 0);
+
+    const metric = document.getElementById("rankMetric").value;
+    list.sort((a,b) => b[metric] - a[metric]);
+
+    const maxEnrolled = Math.max(...list.map(c=>c.enrolled), 1);
+    const board = document.getElementById("scoreboard");
+    board.innerHTML = "";
+
+    list.forEach((c, i) => {
+      const lane = document.createElement("div");
+      lane.className = "lane";
+      const barWidth = (c.enrolled / maxEnrolled) * 100;
+      const actWidth = c.enrolled ? (c.activated / c.enrolled) * 100 : 0;
+      const paidWidth = c.enrolled ? (c.paid / c.enrolled) * 100 : 0;
+
+      lane.innerHTML =
+        '<div class="rank">'+(i+1)+'</div>' +
+        '<div class="lane-country">'+escapeHtml(c.country)+'</div>' +
+        '<div class="lane-track-wrap"><div class="track" style="width:'+barWidth.toFixed(1)+'%">' +
+          '<div class="seg-activated" style="width:'+actWidth.toFixed(1)+'%"></div>' +
+          '<div class="seg-paid" style="width:'+paidWidth.toFixed(1)+'%"></div>' +
+        '</div></div>' +
+        '<div class="lane-numbers">' +
+          '<span>Enrolled <b>'+c.enrolled.toLocaleString()+'</b></span>' +
+          '<span>Paid <b>'+c.paid.toLocaleString()+'</b></span>' +
+          '<span>Conv <b>'+(c.convEnrolled*100).toFixed(1)+'%</b></span>' +
+        '</div>' +
+        '<div class="lane-checkbox"><input type="checkbox" title="Add to country filter" '+(filters.countries.has(c.country)?"checked":"")+' /></div>';
+
+      lane.querySelector(".lane-checkbox input").addEventListener("change", (e) => {
+        if (e.target.checked) filters.countries.add(c.country); else filters.countries.delete(c.country);
+        document.querySelectorAll("#countryChips .chip").forEach(chip => {
+          if (chip.textContent === c.country) chip.classList.toggle("active", e.target.checked);
+        });
+        page = 1; renderAll();
+      });
+
+      board.appendChild(lane);
+    });
+  }
+
+  function renderTable(){
+    const rows = getFilteredWithSearch();
+    document.getElementById("directoryCount").textContent = rows.length.toLocaleString() + " learners";
+    const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    if (page > totalPages) page = totalPages;
+    const startIdx = (page-1)*PAGE_SIZE;
+    const pageRows = rows.slice(startIdx, startIdx+PAGE_SIZE);
+
+    const tbody = document.getElementById("tableBody");
+    tbody.innerHTML = "";
+    pageRows.forEach(L => {
+      const tr = document.createElement("tr");
+
+      const progCount = L.programs.length;
+      const countBadgeClass = progCount > 1 ? "badge multi" : "badge prog";
+      const progCountBadge = '<span class="'+countBadgeClass+'">'+progCount+'</span>';
+      const moduleLines = L.programs.map(p => '<span class="module-line">'+escapeHtml(p.program)+': '+escapeHtml(p.course)+' ('+escapeHtml(p.status)+')</span>').join("");
+
+      tr.innerHTML =
+        '<td>'+escapeHtml(L.email)+'</td>' +
+        '<td>'+escapeHtml((L.first+" "+L.last).trim() || "—")+'</td>' +
+        '<td>'+escapeHtml(L.gender)+'</td>' +
+        '<td>'+escapeHtml(L.country)+'</td>' +
+        '<td>'+progCountBadge+'</td>' +
+        '<td>'+moduleLines+'</td>' +
+        '<td>'+escapeHtml(L.health)+'</td>' +
+        '<td class="'+(L.activated?"yes":"no")+'">'+(L.activated?"Yes":"No")+'</td>' +
+        '<td class="'+(L.paid?"yes":"no")+'">'+(L.paid?"Yes":"No")+'</td>';
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById("pagerInfo").textContent =
+      rows.length === 0 ? "No matching learners" :
+      "Showing " + (startIdx+1) + "–" + Math.min(startIdx+PAGE_SIZE, rows.length) + " of " + rows.length.toLocaleString();
+    document.getElementById("prevPage").disabled = page<=1;
+    document.getElementById("nextPage").disabled = page>=totalPages;
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, s => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[s]));
+  }
+
+})();
+</script>
+</body>
+</html>
